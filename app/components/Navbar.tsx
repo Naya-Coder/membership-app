@@ -15,7 +15,7 @@ export default function Navbar() {
         <nav style={{ color: 'white', padding: '2rem 4rem' }}>
             <ul style={{ display: 'flex', listStyle: 'none', margin: 0, padding: 0 }}>
                  <li>
-                    <NavLink to="/app/" end style={({ isActive }) => ({
+                    <NavLink to="/app" end style={({ isActive }) => ({
                         ...linkStyle,
                         backgroundColor: isActive ? "lightgray" : "transparent",
                         borderBottom: isActive ? "1px solid gray" : "1px solid gray",
