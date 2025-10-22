@@ -1,9 +1,10 @@
 import { Page, Card, DataTable, Text, Button, InlineStack, Badge } from '@shopify/polaris';
 import { TitleBar } from "@shopify/app-bridge-react";
-import { useNavigate, useLoaderData } from '@remix-run/react';
-import { json, type LoaderFunctionArgs } from '@remix-run/node';
+import { useNavigate, useLoaderData, Form, useSubmit } from '@remix-run/react';
+import { json, type LoaderFunctionArgs, type ActionFunctionArgs } from '@remix-run/node';
 import prisma from '../db.server';
 import { authenticate } from '../shopify.server';
+import { deleteMembershipById } from "../utils/prisma";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
@@ -29,28 +30,41 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     },
   });
 
-  console.log('📊 Found membership plans:', membershipPlans.length);
-  console.log('📋 Plans data:', JSON.stringify(membershipPlans, null, 2));
-
   return json({ membershipPlans });
+};
+
+export const action = async ({ request }: ActionFunctionArgs) => {
+  const { session } = await authenticate.admin(request);
+  const form = await request.formData();
+  const intent = form.get('intent');
+  const planId = Number(form.get('planId'));
+
+  if (intent === 'delete' && Number.isFinite(planId)) {
+    await deleteMembershipById(planId, session.shop);
+    return json({ success: true });
+  }
+
+  return json({ success: false }, { status: 400 });
 };
 
 export default function MembershipDataPage() {
   const navigate = useNavigate();
   const { membershipPlans } = useLoaderData<typeof loader>();
-console.log(membershipPlans);
+  const submit = useSubmit();
 
   const handleRequest = () => {
     navigate('/app/membership/new');
   };
 
   const handleEdit = (planId: number) => {
-    navigate(`/app/membership/edit/${planId}`);
+    navigate(`/app/membership/${planId}/edit`);
   };
 
   const handleDelete = (planId: number) => {
-    // TODO: Implement delete functionality
-    console.log('Delete plan:', planId);
+    const form = new FormData();
+    form.append('intent', 'delete');
+    form.append('planId', String(planId));
+    submit(form, { method: 'post' });
   };
 
   // Transform membership plans data for the table
@@ -59,7 +73,10 @@ console.log(membershipPlans);
     plan.name || 'Unnamed Plan',
     <InlineStack gap="200" key={plan.id}>
       <Button size="slim" variant="plain" onClick={() => handleEdit(plan.id)}>
-        Edit
+        Edit Plan
+      </Button>
+      <Button size="slim" variant="plain" onClick={() => navigate(`/app/membership/${plan.id}/perks`)}>
+        Edit Perk
       </Button>
       <Button size="slim" variant="plain" tone="critical" onClick={() => handleDelete(plan.id)}>
         Delete

@@ -12,16 +12,44 @@ import {
 import { json } from '@remix-run/react';
 import { ProductPicker } from "../components/ProductPicker";
 import { useCallback, useState } from "react";
-import { useNavigate, useActionData, Form } from '@remix-run/react';
-import { ActionFunctionArgs } from '@remix-run/node';
-import { createMembership } from "../utils/prisma";
+import { useNavigate, useActionData, useLoaderData, Form } from '@remix-run/react';
+import { ActionFunctionArgs,LoaderFunctionArgs } from '@remix-run/node';
+import { getMembershipById, updateMembership } from "../utils/prisma";
 import { authenticate } from "../shopify.server";
 
-export const action = async ({ request }: ActionFunctionArgs) => {
+export const loader = async ({ request, params }: LoaderFunctionArgs) => {
+    try {
+        const { session } = await authenticate.admin(request);
+        const { membershipId } = params;
+        
+        if (!membershipId) {
+            throw new Error("Membership ID is required");
+        }
+
+        const result = await getMembershipById(membershipId, session.shop);
+        return json({ membershipPlan: result.membershipPlan });
+    } catch (error) {
+        console.error("Error loading membership:", error);
+        return json({ 
+            error: error instanceof Error ? error.message : "Failed to load membership",
+            membershipPlan: null 
+        }, { status: 404 });
+    }
+};
+
+export const action = async ({ request, params }: ActionFunctionArgs) => {
     try {
         const formData = await request.formData();
         const { session } = await authenticate.admin(request);
+        const { membershipId } = params;
         const data = Object.fromEntries(formData);
+
+        if (!membershipId) {
+            return json({ 
+                success: false, 
+                error: "Membership ID is required" 
+            }, { status: 400 });
+        }
 
         const errors: Record<string, string> = {};
 
@@ -46,18 +74,12 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                 errors: { selectedProducts: "Invalid product selection format" } 
             }, { status: 400 });
         }
-        // Create membership using the utility function
+
+        // Update membership using the utility function
         const membershipData = {
             membershipName: data.membershipName as string,
             orderTagName: data.orderTagName as string,
             customerTagName: data.customerTagName as string,
-            renewalFrequency: data.renewalFrequency as string,
-            renewalCycle: data.renewalCycle as string,
-            displayName: data.displayName as string,
-            cancellationPolicy: data.cancellationPolicy as string,
-            automaticExpiration: data.automaticExpiration as string,
-            discountValue: data.discountValue as string,
-            discountType: data.discountType as string,
             requireTags: data.requireTags as string,
             requireTagList: data.requireTagList as string,
             excludeTags: data.excludeTags as string,
@@ -66,34 +88,34 @@ export const action = async ({ request }: ActionFunctionArgs) => {
             shop: session?.shop
         };
 
-        const result = await createMembership(membershipData);
+        const result = await updateMembership(membershipId, membershipData);
 
-        // Redirect to edit perks page with membership id in route
         return new Response(null, {
             status: 302,
             headers: {
-                Location: `/app/membership/${result.membershipPlan.id}/perks`
+                Location: "/app/membership/data"
             }
         });
     } catch (error) {
         console.error("Error in membership action:", error);
         return json({ 
             success: false, 
-            error: error instanceof Error ? error.message : "Failed to create membership" 
+            error: error instanceof Error ? error.message : "Failed to update membership" 
         }, { status: 500 });
     }
 };
 
 
-export default function NewMembershipPlan() {
+export default function EditMembershipPlan() {
     const navigate = useNavigate();
     const actionData = useActionData<typeof action>();
+    const loaderData = useLoaderData<typeof loader>();
 
-    // 🧠 State management
+    // 🧠 State management - Initialize with existing data
     const [formData, setFormData] = useState({
-        membershipName: '',
-        orderTagName: '',
-        customerTagName: '',
+        membershipName: loaderData?.membershipPlan?.name || '',
+        orderTagName: loaderData?.membershipPlan?.orderTagName || '',
+        customerTagName: loaderData?.membershipPlan?.customerTagName || '',
         renewalFrequency: '1',
         renewalCycle: 'months',
         displayName: '',
@@ -101,13 +123,18 @@ export default function NewMembershipPlan() {
         automaticExpiration: '30',
         discountValue: '10',
         discountType: 'percentage',
-        requireTags: false,
-        requireTagList: '',
-        excludeTags: false,
-        excludeTagList: '',
+        requireTags: (loaderData?.membershipPlan?.allowedCustomerTags?.length || 0) > 0,
+        requireTagList: loaderData?.membershipPlan?.allowedCustomerTags?.join(', ') || '',
+        excludeTags: (loaderData?.membershipPlan?.restrictedCustomerTags?.length || 0) > 0,
+        excludeTagList: loaderData?.membershipPlan?.restrictedCustomerTags?.join(', ') || '',
     });
 
-    const [selectedProducts, setSelectedProducts] = useState<{ id: string; title: string }[]>([]);
+    const [selectedProducts, setSelectedProducts] = useState<{ id: string; title: string }[]>(
+        loaderData?.membershipPlan?.product ? [{
+            id: `gid://shopify/Product/${loaderData.membershipPlan.product.shopifyProductId}`,
+            title: loaderData.membershipPlan.product.handle || 'Product'
+        }] : []
+    );
    
     // 🔁 Handle field changes
     const handleChange = useCallback((field: string, value: string | boolean) => {
@@ -117,6 +144,33 @@ export default function NewMembershipPlan() {
     const handleSelectProduct = useCallback((products: { id: string; title: string }[]) => {
         setSelectedProducts(products);
     }, []);
+
+    // Show error if membership not found
+    if (loaderData?.error || !loaderData?.membershipPlan) {
+        return (
+            <div style={{ padding: "1rem 4rem" }}>
+                <div style={{ 
+                    padding: '1rem', 
+                    backgroundColor: '#f8d7da',
+                    border: '1px solid #f5c6cb',
+                    borderRadius: '4px',
+                    textAlign: 'center'
+                }}>
+                    <Text as="p" tone="critical">
+                        {loaderData?.error || "Membership plan not found"}
+                    </Text>
+                    <Button 
+                        onClick={() => navigate("/app/membership/data")} 
+                        variant='primary' 
+                        size="medium"
+                        style={{ marginTop: '1rem' }}
+                    >
+                        Back to Memberships
+                    </Button>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div style={{ padding: "1rem 4rem" }}>
@@ -129,7 +183,7 @@ export default function NewMembershipPlan() {
                 }}>
                     <div style={{ flex: 8 }}>
                         <Text as="h2" variant="headingLg">
-                            Create New Membership Plan
+                            Edit Membership Plan
                         </Text>
                     </div>
                     <div style={{ flex: 1 }}>
@@ -138,7 +192,7 @@ export default function NewMembershipPlan() {
                                 Back
                             </Button>
                             <Button variant='primary' tone='success' size="medium" submit={true}>
-                                Save
+                                Update
                             </Button>
                         </ButtonGroup>
                     </div>
@@ -154,7 +208,7 @@ export default function NewMembershipPlan() {
                         borderRadius: '4px'
                     }}>
                         <Text as="p" tone={actionData.success ? "success" : "critical"}>
-                            {actionData.success ? actionData.message : "Error occurred while creating membership"}
+                            {actionData.success ? actionData.message : actionData.error}
                         </Text>
                     </div>
                 )}
