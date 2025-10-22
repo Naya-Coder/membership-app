@@ -58,6 +58,13 @@ export default function Navbar() {
                     })}>
                         Billing
                     </NavLink></li>
+               <li> <NavLink to="/app/email/settings"  end style={({ isActive }) => ({
+                        ...linkStyle,
+                        backgroundColor: isActive ? "lightgray" : "transparent",
+                        borderBottom: isActive ? "3px solid gray" : "1px solid gray",
+                    })}>
+                        Email Settings
+                    </NavLink></li>
             </ul>
         </nav>
     );

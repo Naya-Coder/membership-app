@@ -197,9 +197,12 @@ export default function NewMembershipPlan() {
                                 />
                                 {/* show validation error for product picker */}
                                 {showErrors && validationErrors.selectedProducts && (
-                                    <Text as="p" variant="bodySm" tone="critical" style={{ marginTop: '0.5rem' }}>
-                                        {validationErrors.selectedProducts}
-                                    </Text>
+                                    <div style={{ marginTop: '0.5rem' }}>
+                                        <Text as="p" variant="bodySm" tone="critical">
+                                            {validationErrors.selectedProducts}
+                                        </Text>
+                                    </div>
+
                                 )}
                             </div>
                         </div>
