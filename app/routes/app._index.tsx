@@ -117,8 +117,8 @@ export default function Index() {
 
     return camelCaseName;
   }
-  //for cards
-  const steps = [
+//for cards
+ const steps = [
     {
       title: "Create Membership Plan",
       description:
@@ -160,7 +160,7 @@ export default function Index() {
     },
   ];
   return (
-    <>
+  <>
       <TitleBar title="Premium Membership App" />
       <div style={{ padding: "1rem 10rem" }}>
         <Card>
@@ -195,7 +195,7 @@ export default function Index() {
                   <li
                     key={i}
                     style={{
-
+                    
                       borderRadius: "8px",
                       border: "1px solid #eee",
                       overflow: "hidden",
