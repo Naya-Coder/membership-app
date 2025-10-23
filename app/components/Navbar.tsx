@@ -1,15 +1,15 @@
-import { Link, NavLink } from "@remix-run/react";
+import { NavLink } from "@remix-run/react";
 
 export default function Navbar() {
 
-    const linkStyle = {
-        color: "black",
-        textDecoration: "none",
-        display: "block",
-        padding: "0.5rem 4rem",
-        border: "1px solid gray",
-        fontWeight: "bold",
-    };
+  const linkStyle = {
+    color: "black",
+    textDecoration: "none",
+    display: "block",
+    padding: "0.5rem 4rem",
+    border: "1px solid gray",
+    fontWeight: "bold",
+  };
 
     return (
         <nav style={{ color: 'white', padding: '2rem 4rem' }}>

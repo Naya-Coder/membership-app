@@ -32,7 +32,7 @@ export function ProductPicker({
     const selected = await (window as any).shopify?.resourcePicker({
       type,
       action: "select",
-      multiple: true,
+      multiple: false,
       selectionIds: selectedIds.map((id) => ({ id, type })),
     });
 

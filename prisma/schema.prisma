@@ -1,32 +1,184 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
 
-// Note that some adapters may set a maximum length for the String type by default, please ensure your strings are long
-// enough when changing adapters.
-// See https://www.prisma.io/docs/orm/reference/prisma-schema-reference#string for more information
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
+/**
+ * =============================
+ * ENUMS
+ * =============================
+ */
+enum PerkType {
+  MEMBER_DISCOUNT
+  MEMBER_EXCLUSIVE_CONTENT
+}
+
 model Session {
-  id             String   @id
-  shop           String   @unique
-  state          String
-  isOnline       Boolean  @default(false)
-  scope          String?
-  expires        DateTime?
-  accessToken    String
-  userId         Int?
-  firstName      String?
-  lastName       String?
-  email          String?
-  accountOwner   Boolean   @default(false)
-  locale         String?
-  collaborator   Boolean?  @default(false)
-  emailVerified  Boolean?  @default(false)
+  id            String    @id
+  shop          String    @unique
+  state         String
+  isOnline      Boolean   @default(false)
+  scope         String?
+  expires       DateTime?
+  accessToken   String
+  userId        Int?
+  firstName     String?
+  lastName      String?
+  email         String?
+  accountOwner  Boolean   @default(false)
+  locale        String?
+  collaborator  Boolean?  @default(false)
+  emailVerified Boolean?  @default(false)
+
+  // ✅ Remove onDelete from here
+  membershipPlans MembershipPlan[]
+}
+
+/**
+ * =============================
+ * PRODUCT TABLE
+ * =============================
+ */
+model Product {
+  id               Int      @id @default(autoincrement())
+  shopifyProductId String   @unique
+  sku              String?  @unique
+  handle           String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  membershipPlan MembershipPlan?
+}
+
+/**
+ * =============================
+ * MEMBERSHIP PLAN TABLE
+ * =============================
+ */
+model MembershipPlan {
+  id                     Int      @id @default(autoincrement())
+  shop                   String
+  name                   String
+  orderTagName           String?
+  customerTagName        String?
+  productId              Int      @unique
+  restrictedCustomerTags String[]
+  allowedCustomerTags    String[]
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+
+  // ✅ onDelete only here — the child side
+  session Session @relation(fields: [shop], references: [shop], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  perks   Perk[]
+}
+
+/**
+ * =============================
+ * PERK TABLE
+ * =============================
+ */
+model Perk {
+  id               Int      @id @default(autoincrement())
+  membershipPlanId Int
+  perkType         PerkType
+  discountTableId  Int?     @unique
+  contentTableId   Int?     @unique
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  // ✅ Cascade on child side
+  membershipPlan MembershipPlan          @relation(fields: [membershipPlanId], references: [id], onDelete: Cascade)
+  discount       Discount?               @relation(fields: [discountTableId], references: [id], onDelete: Cascade)
+  content        MemberExclusiveContent? @relation(fields: [contentTableId], references: [id], onDelete: Cascade)
+}
+
+/**
+ * =============================
+ * DISCOUNT TABLE
+ * =============================
+ */
+model Discount {
+  id                Int      @id @default(autoincrement())
+  shopifyDiscountId String?
+  discountType      String?
+  discountValue     Decimal?
+  message           String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  perk Perk?
+}
+
+/**
+ * =============================
+ * MEMBER EXCLUSIVE CONTENT TABLE
+ * =============================
+ */
+model MemberExclusiveContent {
+  id                  Int      @id @default(autoincrement())
+  pagesUrl            String[]
+  accessDeniedMessage String?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  perk Perk?
+}
+
+/**
+ * =============================
+ * CUSTOMER TABLE
+ * =============================
+ */
+model Customer {
+  id                Int      @id @default(autoincrement())
+  shopifyCustomerId String   @unique
+  name              String?
+  email             String?
+  address           String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  // ✅ Remove onDelete from here
+  orders Order[]
+}
+
+/**
+ * =============================
+ * ORDER TABLE (merged: Order + Payment + Renewal)
+ * =============================
+ */
+model Order {
+  id                  Int       @id @default(autoincrement())
+  shopifyOrderId      String    @unique
+  customerId          Int
+  price               Decimal?
+  lineItems           Json
+  gatewayName         String? // Payment gateway used
+  paymentStatus       String? // e.g. "paid", "pending", "failed"
+  renewalDate         DateTime?
+  cancellationPolicy  String?
+  automaticExpiration Boolean   @default(false)
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+}
+
+/**
+ * =============================
+ * APP PLAN TABLE
+ * =============================
+ */
+model AppPlan {
+  id          Int      @id @default(autoincrement())
+  name        String
+  description String?
+  price       Decimal?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }

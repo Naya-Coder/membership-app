@@ -31,26 +31,26 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   ];
   const response = await admin.graphql(
     `#graphql
-      mutation populateProduct($product: ProductCreateInput!) {
-        productCreate(product: $product) {
-          product {
-            id
-            title
-            handle
-            status
-            variants(first: 10) {
-              edges {
-                node {
-                  id
-                  price
-                  barcode
-                  createdAt
-                }
-              }
-            }
-          }
-        }
-      }`,
+mutation populateProduct($product: ProductCreateInput!) {
+productCreate(product: $product) {
+product {
+id
+title
+handle
+status
+variants(first: 10) {
+edges {
+node {
+id
+price
+barcode
+createdAt
+}
+}
+}
+}
+}
+}`,
     {
       variables: {
         product: {
@@ -66,16 +66,16 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
   const variantResponse = await admin.graphql(
     `#graphql
-    mutation shopifyRemixTemplateUpdateVariant($productId: ID!, $variants: [ProductVariantsBulkInput!]!) {
-      productVariantsBulkUpdate(productId: $productId, variants: $variants) {
-        productVariants {
-          id
-          price
-          barcode
-          createdAt
-        }
-      }
-    }`,
+mutation shopifyRemixTemplateUpdateVariant($productId: ID!, $variants: [ProductVariantsBulkInput!]!) {
+productVariantsBulkUpdate(productId: $productId, variants: $variants) {
+productVariants {
+id
+price
+barcode
+createdAt
+}
+}
+}`,
     {
       variables: {
         productId: product.id,
